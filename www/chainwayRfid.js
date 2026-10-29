@@ -1,6 +1,11 @@
 var exec = require('cordova/exec');
 var SERVICE = 'ChainwayRfid';
 
+function dispatchTriggerEvent(event) {
+  if (event.type !== 'trigger' || !event.isTrigger) return;
+  window.dispatchEvent(new CustomEvent('chainwayrfidtrigger', { detail: event }));
+}
+
 module.exports = {
   pluginVersion: '0.3.0-DIAG',
 
@@ -46,5 +51,18 @@ module.exports = {
   watchTrigger: function (opts, onEvent, err) {
     exec(onEvent, err, SERVICE, 'watchTrigger', [opts || {}]);
   },
-  unwatchTrigger: function (ok, err) { exec(ok, err, SERVICE, 'unwatchTrigger', []); }
+  unwatchTrigger: function (ok, err) { exec(ok, err, SERVICE, 'unwatchTrigger', []); },
+  /** Publica los eventos del gatillo como eventos DOM para OutSystems. */
+  startTriggerEvents: function (opts, ok, err) {
+    exec(function (event) {
+      if (event.type === 'watching') {
+        if (ok) ok();
+      } else {
+        dispatchTriggerEvent(event);
+      }
+    }, err, SERVICE, 'watchTrigger', [opts || {}]);
+  },
+
+  /** Detiene la publicación de eventos del gatillo. */
+  stopTriggerEvents: function (ok, err) { exec(ok, err, SERVICE, 'unwatchTrigger', []); }
 };

@@ -302,12 +302,14 @@ public class ChainwayRfid extends CordovaPlugin {
             cb.error("[ERR-JAVA-BC-NOT-INIT] Lector 2D no inicializado (barcodeInitialized=" + barcodeInitialized + ").");
             return;
         }
+        closeBarcodeStream();
         barcodeCallback = cb;
         cordova.getThreadPool().execute(() -> {
             try {
                 barcodeDecoder.startScan();
                 sendEvent(cb, event("scan_started"), true);
             } catch (Exception e) {
+                if (barcodeCallback == cb) barcodeCallback = null;
                 cb.error("[ERR-JAVA-BC-START] " + e.getMessage());
             }
         });
@@ -319,6 +321,7 @@ public class ChainwayRfid extends CordovaPlugin {
                 if (barcodeDecoder != null && barcodeInitialized) {
                     barcodeDecoder.stopScan();
                 }
+                closeBarcodeStream();
                 cb.success("BARCODE_STOP_OK");
             } catch (Exception e) {
                 cb.error("[ERR-JAVA-BC-STOP] " + e.getMessage());
@@ -343,7 +346,13 @@ public class ChainwayRfid extends CordovaPlugin {
             }
         } catch (Exception ignored) { }
         barcodeInitialized = false;
+        closeBarcodeStream();
+    }
+
+    private synchronized void closeBarcodeStream() {
+        CallbackContext callback = barcodeCallback;
         barcodeCallback = null;
+        closeCallback(callback);
     }
 
     // ---------- Gatillo fisico ----------
@@ -357,6 +366,7 @@ public class ChainwayRfid extends CordovaPlugin {
                 for (int i = 0; i < codes.length(); i++) triggerKeys.add(codes.optInt(i));
             }
         }
+        closeTriggerStream();
         triggerCallback = cb;
         cordova.getActivity().runOnUiThread(() -> {
             View view = webView.getView();
@@ -382,12 +392,12 @@ public class ChainwayRfid extends CordovaPlugin {
                     return isTrigger;
                 }
             });
+            if (triggerCallback == cb) sendEvent(cb, event("watching"), true);
         });
-        sendEvent(cb, event("watching"), true);
     }
 
     private void unwatchTrigger(final CallbackContext cb) {
-        triggerCallback = null;
+        closeTriggerStream();
         cordova.getActivity().runOnUiThread(() -> webView.getView().setOnKeyListener(null));
         cb.success();
     }
@@ -402,6 +412,7 @@ public class ChainwayRfid extends CordovaPlugin {
         }
         if (barcodeDecoder != null && barcodeInitialized) {
             try { barcodeDecoder.stopScan(); } catch (Exception ignored) { }
+            closeBarcodeStream();
         }
     }
 
@@ -409,6 +420,7 @@ public class ChainwayRfid extends CordovaPlugin {
     public void onDestroy() {
         releaseReader();
         releaseBarcode();
+        closeTriggerStream();
     }
 
     // ---------- Helpers ----------
@@ -431,5 +443,18 @@ public class ChainwayRfid extends CordovaPlugin {
         PluginResult r = new PluginResult(PluginResult.Status.OK, payload);
         r.setKeepCallback(keep);
         cb.sendPluginResult(r);
+    }
+
+    private synchronized void closeTriggerStream() {
+        CallbackContext callback = triggerCallback;
+        triggerCallback = null;
+        closeCallback(callback);
+    }
+
+    private static void closeCallback(CallbackContext callback) {
+        if (callback == null) return;
+        PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
+        result.setKeepCallback(false);
+        callback.sendPluginResult(result);
     }
 }
