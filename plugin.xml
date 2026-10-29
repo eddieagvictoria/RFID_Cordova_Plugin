@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        id="cordova-plugin-chainway-rfid" version="0.3.0">
+  <name>ChainwayRfid</name>
+  <description>Lector UHF RFID y 2D Barcode de Chainway C72 (v0.3.0-DIAG)</description>
+
+  <js-module src="www/chainwayRfid.js" name="ChainwayRfid">
+    <clobbers target="ChainwayRfid" />
+  </js-module>
+
+  <platform name="android">
+    <config-file target="res/xml/config.xml" parent="/*">
+      <feature name="ChainwayRfid">
+        <param name="android-package" value="com.poc.chainwayrfid.ChainwayRfid" />
+        <param name="onload" value="true" />
+      </feature>
+    </config-file>
+
+    <source-file src="src/android/ChainwayRfid.java" target-dir="src/com/poc/chainwayrfid" />
+    <lib-file src="src/android/libs/DeviceAPI.aar" />
+    <framework src="src/android/chainway-rfid.gradle" custom="true" type="gradleReference" />
+  </platform>
+</plugin>

@@ -1,0 +1,50 @@
+var exec = require('cordova/exec');
+var SERVICE = 'ChainwayRfid';
+
+module.exports = {
+  pluginVersion: '0.3.0-DIAG',
+
+  /** Devuelve el estado interno real de Java: { version, uhfInitialized, uhfInventorying, barcodeInitialized, watchingTrigger } */
+  getDiagInfo: function (ok, err) { exec(ok, err, SERVICE, 'getDiagInfo', []); },
+
+  /** Inicializa el módulo UHF (tarda 1-3 s). */
+  init: function (ok, err) { exec(ok, err, SERVICE, 'init', []); },
+
+  /** Libera el módulo UHF. */
+  free: function (ok, err) { exec(ok, err, SERVICE, 'free', []); },
+
+  /** Inventario continuo UHF. */
+  startInventory: function (opts, onEvent, err) {
+    exec(onEvent, err, SERVICE, 'startInventory', [opts || {}]);
+  },
+
+  /** Detiene el inventario UHF. */
+  stopInventory: function (ok, err) { exec(ok, err, SERVICE, 'stopInventory', []); },
+
+  /** Lee un solo tag UHF. */
+  readSingle: function (ok, err) { exec(ok, err, SERVICE, 'readSingle', []); },
+
+  /** Potencia en dBm. */
+  setPower: function (dbm, ok, err) { exec(ok, err, SERVICE, 'setPower', [dbm]); },
+  getPower: function (ok, err) { exec(ok, err, SERVICE, 'getPower', []); },
+
+  /** Inicializa el módulo 2D de Código de Barras / QR. */
+  initBarcode: function (ok, err) { exec(ok, err, SERVICE, 'initBarcode', []); },
+
+  /** Libera el módulo 2D de Código de Barras / QR. */
+  freeBarcode: function (ok, err) { exec(ok, err, SERVICE, 'freeBarcode', []); },
+
+  /** Dispara el láser 2D. */
+  startBarcodeScan: function (onEvent, err) {
+    exec(onEvent, err, SERVICE, 'startBarcodeScan', []);
+  },
+
+  /** Detiene el disparo del láser 2D. */
+  stopBarcodeScan: function (ok, err) { exec(ok, err, SERVICE, 'stopBarcodeScan', []); },
+
+  /** Escucha el gatillo físico. */
+  watchTrigger: function (opts, onEvent, err) {
+    exec(onEvent, err, SERVICE, 'watchTrigger', [opts || {}]);
+  },
+  unwatchTrigger: function (ok, err) { exec(ok, err, SERVICE, 'unwatchTrigger', []); }
+};
