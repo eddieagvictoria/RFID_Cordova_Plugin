@@ -2,7 +2,7 @@
 
 Plugin Cordova para Android que conecta una aplicación móvil con el lector RFID UHF, el escáner de códigos de barras/QR y el gatillo físico de un Chainway C72 mediante el SDK `DeviceAPI.aar` incluido. También puede integrarse en OutSystems. No funciona en navegador ni en la vista previa de OutSystems.
 
-Versión del paquete: **0.3.0**; identificador de diagnóstico de JavaScript y Java: **0.3.0-DIAG**. El identificador del plugin es `cordova-plugin-chainway-rfid`.
+Versión del paquete: **0.3.1**; identificador de diagnóstico de JavaScript y Java: **0.3.1-DIAG**. El identificador del plugin es `cordova-plugin-chainway-rfid`.
 
 ## Instalación
 
@@ -44,6 +44,8 @@ Todos los métodos utilizan callbacks de Cordova. `ok` recibe el resultado y `er
 | `unwatchTrigger(ok, err)` | Deja de escuchar teclas y cierra el callback de eventos. |
 | `startTriggerEvents(opts, ok, err)` | Activa la escucha y publica eventos DOM `chainwayrfidtrigger` en `window` para las teclas configuradas como gatillo. `ok` confirma la suscripción. |
 | `stopTriggerEvents(ok, err)` | Detiene la escucha del gatillo. Comparte la misma escucha con `watchTrigger` y `unwatchTrigger`. |
+
+Con `startTriggerEvents`, el evento DOM `chainwayrfidkey` entrega cada tecla admitida por la opción `logAll`; `chainwayrfidtrigger` sigue entregando solo las teclas reconocidas como gatillo. El callback de inicio recibe el evento `watching`, con `hasFocus`, `logAll` y `keyCodes`. Estos datos indican el estado al registrar el listener; no prueban que el dispositivo le entregue las teclas.
 
 ### Eventos
 

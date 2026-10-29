@@ -26,7 +26,7 @@ import java.util.Set;
 
 public class ChainwayRfid extends CordovaPlugin {
 
-    public static final String PLUGIN_VERSION = "0.3.0-DIAG";
+    public static final String PLUGIN_VERSION = "0.3.1-DIAG";
 
     // Keycodes conocidos de Chainway C72 para el gatillo y botones laterales
     private static final Integer[] DEFAULT_TRIGGER_KEYS = {139, 280, 291, 293, 294, 311, 312, 313, 315};
@@ -392,7 +392,15 @@ public class ChainwayRfid extends CordovaPlugin {
                     return isTrigger;
                 }
             });
-            if (triggerCallback == cb) sendEvent(cb, event("watching"), true);
+            if (triggerCallback == cb) {
+                JSONObject watching = event("watching");
+                try {
+                    watching.put("hasFocus", view.hasFocus());
+                    watching.put("logAll", logAllKeys);
+                    watching.put("keyCodes", new JSONArray(triggerKeys));
+                } catch (JSONException ignored) { }
+                sendEvent(cb, watching, true);
+            }
         });
     }
 

@@ -2,12 +2,15 @@ var exec = require('cordova/exec');
 var SERVICE = 'ChainwayRfid';
 
 function dispatchTriggerEvent(event) {
-  if (event.type !== 'trigger' || !event.isTrigger) return;
-  window.dispatchEvent(new CustomEvent('chainwayrfidtrigger', { detail: event }));
+  if (event.type !== 'trigger') return;
+  window.dispatchEvent(new CustomEvent('chainwayrfidkey', { detail: event }));
+  if (event.isTrigger) {
+    window.dispatchEvent(new CustomEvent('chainwayrfidtrigger', { detail: event }));
+  }
 }
 
 module.exports = {
-  pluginVersion: '0.3.0-DIAG',
+  pluginVersion: '0.3.1-DIAG',
 
   /** Devuelve el estado interno real de Java: { version, uhfInitialized, uhfInventorying, barcodeInitialized, watchingTrigger } */
   getDiagInfo: function (ok, err) { exec(ok, err, SERVICE, 'getDiagInfo', []); },
@@ -56,7 +59,7 @@ module.exports = {
   startTriggerEvents: function (opts, ok, err) {
     exec(function (event) {
       if (event.type === 'watching') {
-        if (ok) ok();
+        if (ok) ok(event);
       } else {
         dispatchTriggerEvent(event);
       }
