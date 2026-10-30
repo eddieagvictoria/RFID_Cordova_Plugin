@@ -23,7 +23,7 @@ function dispatchTriggerEvent(event) {
 }
 
 module.exports = {
-  pluginVersion: '0.3.2-DIAG',
+  pluginVersion: '0.3.3-DIAG',
 
   /** Devuelve el estado interno real de Java: { version, uhfInitialized, uhfInventorying, barcodeInitialized, watchingTrigger } */
   getDiagInfo: function (ok, err) { exec(ok, err, SERVICE, 'getDiagInfo', []); },

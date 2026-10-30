@@ -2,7 +2,7 @@
 
 Plugin Cordova para Android que conecta una aplicación móvil con el lector RFID UHF, el escáner de códigos de barras/QR y el gatillo físico de un Chainway C72 mediante el SDK `DeviceAPI.aar` incluido. También puede integrarse en OutSystems. No funciona en navegador ni en la vista previa de OutSystems.
 
-Versión del paquete: **0.3.2**; identificador de diagnóstico de JavaScript y Java: **0.3.2-DIAG**. El identificador del plugin es `cordova-plugin-chainway-rfid`.
+Versión del paquete: **0.3.3**; identificador de diagnóstico de JavaScript y Java: **0.3.3-DIAG**. El identificador del plugin es `cordova-plugin-chainway-rfid`.
 
 ## Instalación
 
@@ -47,7 +47,7 @@ Todos los métodos utilizan callbacks de Cordova. `ok` recibe el resultado y `er
 
 Con `startTriggerEvents`, el evento DOM `chainwayrfidkey` entrega cada tecla admitida por la opción `logAll`; `chainwayrfidtrigger` sigue entregando solo las teclas reconocidas como gatillo. El callback de inicio recibe el evento `watching`, con `hasFocus`, `logAll` y `keyCodes`. Estos datos indican el estado al registrar el listener; no prueban que el dispositivo le entregue las teclas.
 
-Con `logAll: true` también se observan eventos de teclas que llegan a la ventana Android. Se publican en `chainwayrfidwindowkey` con `action`, `keyCode`, `scanCode` e `isTrigger`, y en `chainwayrfidkey` con una acción prefijada por `ventana:` para que la bitácora existente los distinga. Es solo diagnóstico: no activa el gatillo ni consume esos eventos en la ventana; un evento de la misma tecla puede aparecer también desde la vista. `watching.windowDiagnostics` indica si se instaló el observador. El callback original de la ventana se restaura al cerrar la escucha si sigue siendo el callback instalado por el plugin. Si otra aplicación o Android intercepta la tecla antes de que llegue a la ventana, no aparecerá. Usa `logAll` solo para diagnosticar: se registran códigos de otras teclas mientras esté activo.
+La ventana Android captura las teclas configuradas como gatillo, emite sus eventos `down` / `up` y las consume; las demás teclas se delegan al callback original. Con `logAll: true` se publican diagnósticos en `chainwayrfidwindowkey` y en `chainwayrfidkey` con una acción prefijada por `ventana:`. `watching.windowDiagnostics` indica si se instaló el observador; si falla, se usa la escucha de la vista web. El callback original se restaura al cerrar la escucha si sigue siendo el callback instalado por el plugin. Si otra aplicación o Android intercepta la tecla antes de que llegue a la ventana, no aparecerá. Usa `logAll` solo para diagnosticar: se registran códigos de otras teclas mientras esté activo.
 
 ### Eventos
 
@@ -99,7 +99,7 @@ ChainwayRfid.watchTrigger({ keyCodes: [293], logAll: false }, function (event) {
 }, console.error);
 ```
 
-El código `293` es solo un ejemplo: verifica el de tu unidad con `watchTrigger({ logAll: true }, ...)` y el registro de eventos. Por defecto se reconocen `139, 280, 291, 293, 294, 311, 312, 313, 315`. La detección depende del foco de la vista web y de que otra aplicación no capture la tecla. Para volver a escuchar con otra configuración, llama primero a `unwatchTrigger`.
+El código `293` se observó en el gatillo del C72 probado y es el único reconocido por defecto. En otra unidad verifica el código con `watchTrigger({ logAll: true }, ...)` y configúralo mediante `keyCodes`. El cambio de la lista predeterminada afecta a quienes dependían de los códigos 139, 280, 291, 294, 311, 312, 313 o 315: deben configurarlos explícitamente. Para volver a escuchar con otra configuración, llama primero a `unwatchTrigger`.
 
 En un nodo JavaScript de OutSystems, usa los callbacks para resolver la acción y transmitir errores; para eventos continuos llama a una client action, por ejemplo `$actions.OnTagRead(event.epc, event.rssi)`. No resuelvas la acción de inventario antes de haber establecido cómo gestionarás sus eventos.
 

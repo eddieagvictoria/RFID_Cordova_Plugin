@@ -29,10 +29,10 @@ import java.lang.reflect.Proxy;
 
 public class ChainwayRfid extends CordovaPlugin {
 
-    public static final String PLUGIN_VERSION = "0.3.2-DIAG";
+    public static final String PLUGIN_VERSION = "0.3.3-DIAG";
 
-    // Keycodes conocidos de Chainway C72 para el gatillo y botones laterales
-    private static final Integer[] DEFAULT_TRIGGER_KEYS = {139, 280, 291, 293, 294, 311, 312, 313, 315};
+    // Gatillo observado en el C72 probado; otros modelos pueden configurar keyCodes.
+    private static final Integer[] DEFAULT_TRIGGER_KEYS = {293};
 
     // --- Estado UHF ---
     private RFIDWithUHFUART reader;
@@ -363,6 +363,9 @@ public class ChainwayRfid extends CordovaPlugin {
     // ---------- Gatillo fisico ----------
 
     private void watchTrigger(JSONObject opts, final CallbackContext cb) {
+        triggerKeys.clear();
+        triggerKeys.addAll(Arrays.asList(DEFAULT_TRIGGER_KEYS));
+        logAllKeys = true;
         if (opts != null) {
             logAllKeys = opts.optBoolean("logAll", true);
             JSONArray codes = opts.optJSONArray("keyCodes");
@@ -388,6 +391,8 @@ public class ChainwayRfid extends CordovaPlugin {
             view.setOnKeyListener(new View.OnKeyListener() {
                 @Override
                 public boolean onKey(View v, int keyCode, KeyEvent ev) {
+                    // La ventana ya procesa las teclas cuando el observador está instalado.
+                    if (diagnosticWindowCallback != null) return false;
                     boolean isTrigger = triggerKeys.contains(keyCode);
                     if (!isTrigger && !logAllKeys) return false;
                     if (ev.getRepeatCount() > 0) return isTrigger;
@@ -426,8 +431,8 @@ public class ChainwayRfid extends CordovaPlugin {
         });
     }
 
-    // Observa eventos enviados a la ventana sin consumirlos ni alterar su destino.
-    // Solo reporta códigos y acciones; no registra caracteres escritos.
+    // La ventana maneja el gatillo configurado y delega las demás teclas.
+    // El diagnóstico solo reporta códigos y acciones, no caracteres escritos.
     private void installWindowKeyDiagnostics() {
         Window window = cordova.getActivity().getWindow();
         if (diagnosticWindowCallback != null && window.getCallback() == diagnosticWindowCallback) return;
@@ -438,21 +443,33 @@ public class ChainwayRfid extends CordovaPlugin {
                 Window.Callback.class.getClassLoader(), new Class<?>[]{Window.Callback.class},
                 (proxy, method, args) -> {
                     if ("dispatchKeyEvent".equals(method.getName()) && args != null && args.length == 1
-                            && args[0] instanceof KeyEvent && logAllKeys) {
+                            && args[0] instanceof KeyEvent) {
                         KeyEvent key = (KeyEvent) args[0];
-                        if (key.getRepeatCount() == 0 && (key.getAction() == KeyEvent.ACTION_DOWN
+                        boolean isTrigger = triggerKeys.contains(key.getKeyCode());
+                        CallbackContext callback = triggerCallback;
+                        if (callback != null && (key.getAction() == KeyEvent.ACTION_DOWN
                                 || key.getAction() == KeyEvent.ACTION_UP)) {
-                            CallbackContext callback = triggerCallback;
-                            if (callback != null) {
+                            if (key.getRepeatCount() > 0 && isTrigger) return true;
+                            if (key.getRepeatCount() == 0) {
                                 try {
-                                    JSONObject o = event("window_key");
-                                    o.put("action", key.getAction() == KeyEvent.ACTION_DOWN ? "down" : "up");
-                                    o.put("keyCode", key.getKeyCode());
-                                    o.put("scanCode", key.getScanCode());
-                                    o.put("isTrigger", triggerKeys.contains(key.getKeyCode()));
-                                    sendEvent(callback, o, true);
+                                    if (logAllKeys) {
+                                        JSONObject o = event("window_key");
+                                        o.put("action", key.getAction() == KeyEvent.ACTION_DOWN ? "down" : "up");
+                                        o.put("keyCode", key.getKeyCode());
+                                        o.put("scanCode", key.getScanCode());
+                                        o.put("isTrigger", isTrigger);
+                                        sendEvent(callback, o, true);
+                                    }
+                                    if (isTrigger) {
+                                        JSONObject o = event("trigger");
+                                        o.put("action", key.getAction() == KeyEvent.ACTION_DOWN ? "down" : "up");
+                                        o.put("keyCode", key.getKeyCode());
+                                        o.put("isTrigger", true);
+                                        sendEvent(callback, o, true);
+                                    }
                                 } catch (JSONException ignored) { }
                             }
+                            if (isTrigger) return true;
                         }
                     }
                     try {
