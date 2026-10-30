@@ -1,7 +1,7 @@
 {
   "name": "cordova-plugin-chainway-rfid",
-  "version": "0.3.1",
-  "description": "Plugin para lector UHF y Barcode 2D Chainway v0.3.1-DIAG",
+  "version": "0.3.2",
+  "description": "Plugin para lector UHF y Barcode 2D Chainway v0.3.2-DIAG",
   "cordova": {
     "id": "cordova-plugin-chainway-rfid",
     "platforms": [

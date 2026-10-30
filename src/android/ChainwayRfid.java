@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.Window;
 
 import com.rscja.barcode.BarcodeDecoder;
 import com.rscja.barcode.BarcodeFactory;
@@ -23,10 +24,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 
 public class ChainwayRfid extends CordovaPlugin {
 
-    public static final String PLUGIN_VERSION = "0.3.1-DIAG";
+    public static final String PLUGIN_VERSION = "0.3.2-DIAG";
 
     // Keycodes conocidos de Chainway C72 para el gatillo y botones laterales
     private static final Integer[] DEFAULT_TRIGGER_KEYS = {139, 280, 291, 293, 294, 311, 312, 313, 315};
@@ -47,6 +50,8 @@ public class ChainwayRfid extends CordovaPlugin {
     private volatile CallbackContext triggerCallback;
     private final Set<Integer> triggerKeys = new HashSet<>(Arrays.asList(DEFAULT_TRIGGER_KEYS));
     private volatile boolean logAllKeys = true;
+    private Window.Callback previousWindowCallback;
+    private Window.Callback diagnosticWindowCallback;
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext cb) throws JSONException {
@@ -369,6 +374,13 @@ public class ChainwayRfid extends CordovaPlugin {
         closeTriggerStream();
         triggerCallback = cb;
         cordova.getActivity().runOnUiThread(() -> {
+            if (triggerCallback != cb) return;
+            try {
+                installWindowKeyDiagnostics();
+            } catch (Exception ignored) {
+                diagnosticWindowCallback = null;
+                previousWindowCallback = null;
+            }
             View view = webView.getView();
             view.setFocusable(true);
             view.setFocusableInTouchMode(true);
@@ -398,6 +410,7 @@ public class ChainwayRfid extends CordovaPlugin {
                     watching.put("hasFocus", view.hasFocus());
                     watching.put("logAll", logAllKeys);
                     watching.put("keyCodes", new JSONArray(triggerKeys));
+                    watching.put("windowDiagnostics", diagnosticWindowCallback != null);
                 } catch (JSONException ignored) { }
                 sendEvent(cb, watching, true);
             }
@@ -406,8 +419,58 @@ public class ChainwayRfid extends CordovaPlugin {
 
     private void unwatchTrigger(final CallbackContext cb) {
         closeTriggerStream();
-        cordova.getActivity().runOnUiThread(() -> webView.getView().setOnKeyListener(null));
-        cb.success();
+        cordova.getActivity().runOnUiThread(() -> {
+            webView.getView().setOnKeyListener(null);
+            removeWindowKeyDiagnostics();
+            cb.success();
+        });
+    }
+
+    // Observa eventos enviados a la ventana sin consumirlos ni alterar su destino.
+    // Solo reporta códigos y acciones; no registra caracteres escritos.
+    private void installWindowKeyDiagnostics() {
+        Window window = cordova.getActivity().getWindow();
+        if (diagnosticWindowCallback != null && window.getCallback() == diagnosticWindowCallback) return;
+        previousWindowCallback = window.getCallback();
+        final Window.Callback delegate = previousWindowCallback;
+        if (delegate == null) return;
+        diagnosticWindowCallback = (Window.Callback) Proxy.newProxyInstance(
+                Window.Callback.class.getClassLoader(), new Class<?>[]{Window.Callback.class},
+                (proxy, method, args) -> {
+                    if ("dispatchKeyEvent".equals(method.getName()) && args != null && args.length == 1
+                            && args[0] instanceof KeyEvent && logAllKeys) {
+                        KeyEvent key = (KeyEvent) args[0];
+                        if (key.getRepeatCount() == 0 && (key.getAction() == KeyEvent.ACTION_DOWN
+                                || key.getAction() == KeyEvent.ACTION_UP)) {
+                            CallbackContext callback = triggerCallback;
+                            if (callback != null) {
+                                try {
+                                    JSONObject o = event("window_key");
+                                    o.put("action", key.getAction() == KeyEvent.ACTION_DOWN ? "down" : "up");
+                                    o.put("keyCode", key.getKeyCode());
+                                    o.put("scanCode", key.getScanCode());
+                                    o.put("isTrigger", triggerKeys.contains(key.getKeyCode()));
+                                    sendEvent(callback, o, true);
+                                } catch (JSONException ignored) { }
+                            }
+                        }
+                    }
+                    try {
+                        return method.invoke(delegate, args);
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+        window.setCallback(diagnosticWindowCallback);
+    }
+
+    private void removeWindowKeyDiagnostics() {
+        Window window = cordova.getActivity().getWindow();
+        if (diagnosticWindowCallback != null && window.getCallback() == diagnosticWindowCallback) {
+            window.setCallback(previousWindowCallback);
+        }
+        diagnosticWindowCallback = null;
+        previousWindowCallback = null;
     }
 
     // ---------- Lifecycle de la Activity ----------
@@ -429,6 +492,7 @@ public class ChainwayRfid extends CordovaPlugin {
         releaseReader();
         releaseBarcode();
         closeTriggerStream();
+        cordova.getActivity().runOnUiThread(this::removeWindowKeyDiagnostics);
     }
 
     // ---------- Helpers ----------
